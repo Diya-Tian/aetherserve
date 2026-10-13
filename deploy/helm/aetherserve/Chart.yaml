@@ -1,0 +1,30 @@
+# AetherServe Helm Chart
+#
+# 设计说明
+# --------
+# 本 Chart 只负责部署**控制面**（Operator + RBAC + CRD 开关）与**可观测性脚手架**。
+# 业务侧的模型服务不由本 Chart 管理 —— 那是 Operator 通过 `InferenceService` CRD 的职责。
+#
+# 这个边界很重要：如果把模型服务也塞进 Chart，
+# 每次改模型配置都要 `helm upgrade`，而 Helm 的"声明式"是**一次性渲染 + 差分应用**，
+# 无法表达"持续收敛到期望状态"（那是控制器模式的能力）。
+# 所以正确的分工是：Helm 装控制器，控制器管业务资源。
+apiVersion: v2
+name: aetherserve
+description: 面向大模型的多租户云原生推理服务平台（控制面）
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - llm
+  - inference
+  - kubernetes
+  - operator
+  - cloud-native
+home: https://github.com/your-name/aetherserve
+sources:
+  - https://github.com/your-name/aetherserve
+maintainers:
+  - name: AetherServe Contributors
+annotations:
+  category: AI/MachineLearning

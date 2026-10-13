@@ -1,0 +1,59 @@
+{{- if .Values.prometheusRule.enabled -}}
+{{/*
+平台级告警规则
+--------------
+与每个 InferenceService 生成的规则（在 src/aetherserve/operator/builders.py 的
+build_prometheus_rule）互补：
+- 每个 CR 的规则关注"这个模型服务"的健康；
+- 这里的规则关注"控制器/平台自身"的健康（调和失败率、调和耗时）。
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "aetherserve.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aetherserve.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: aetherserve-operator.rules
+      interval: 30s
+      rules:
+        - alert: AetherServeOperatorReconcileErrors
+          # 调和失败率超过 10% 持续 10 分钟 → 控制器可能无法正常工作
+          expr: |
+            sum(rate(aetherserve_reconcile_total{result="error"}[10m]))
+            / sum(rate(aetherserve_reconcile_total[10m])) > 0.1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "AetherServe Operator 调和失败率超过 10%"
+            description: "控制器无法收敛期望状态，请检查 Operator 日志与 RBAC 权限"
+
+        - alert: AetherServeOperatorReconcileSlow
+          # 单次调和 P99 超过 10 秒 → 可能在做全量列举或遇到 API 限流
+          expr: |
+            histogram_quantile(0.99,
+              sum(rate(aetherserve_reconcile_duration_seconds_bucket[10m])) by (le)
+            ) > 10
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "AetherServe Operator 调和耗时 P99 超过 10 秒"
+            # 注意：Prometheus 的模板占位符必须用 Helm 的字符串字面量转义，
+            # 否则 Helm 会把它当成自己的模板变量并报 "undefined variable $value"。
+            description: "可能是 API Server 限流或列举操作过重，当前 P99 = {{ "{{ $value }}" }}s"
+
+        - alert: AetherServeOperatorDown
+          expr: up{job=~".*aetherserve.*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "AetherServe Operator 指标抓取失败（可能已停止运行）"
+{{- end }}

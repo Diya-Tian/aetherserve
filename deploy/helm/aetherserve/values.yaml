@@ -1,0 +1,97 @@
+# AetherServe Chart 默认配置
+#
+# 约定：所有可调项都在这里，模板中不出现魔法值。
+
+# ---------------------------------------------------------------- 全局
+nameOverride: ""
+fullnameOverride: ""
+
+# 镜像配置（Operator 与网关共用仓库，不同 tag 可分别覆盖）
+image:
+  repository: aetherserve/operator
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+# ---------------------------------------------------------------- CRD
+crd:
+  # 是否随 Chart 安装 InferenceService CRD。
+  # 生产环境建议设为 false，由集群管理员单独管理 CRD（避免 helm uninstall 误删 CRD
+  # 导致所有 InferenceService 自定义资源被级联删除 —— 这是很危险的操作）。
+  install: true
+  # helm uninstall 时是否保留 CRD（强烈建议 true，理由同上）
+  keep: true
+
+# ---------------------------------------------------------------- Operator
+operator:
+  enabled: true
+  replicas: 1          # 控制器通常单副本（leader election 需要额外组件，本项目未引入）
+  logLevel: INFO
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Operator 拉取 Prometheus 指标做灰度分析；留空则灰度会"停在原地"（fail-safe）
+  prometheusUrl: ""
+
+  # 调和并发度：同时处理的 CR 数量上限
+  workers: 4
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podAnnotations: {}
+  extraEnv: []
+
+  # Pod 反亲和：多副本时分散到不同节点（单副本无影响）
+  podAntiAffinity:
+    enabled: true
+
+# ---------------------------------------------------------------- RBAC
+rbac:
+  # 创建 ClusterRole / ClusterRoleBinding。设为 false 时需自行准备权限。
+  create: true
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ---------------------------------------------------------------- 监控
+serviceMonitor:
+  # 是否创建 Operator 自身的 ServiceMonitor（需要集群已装 Prometheus Operator）
+  enabled: false
+  interval: 30s
+  labels: {}
+
+# 平台级告警规则（跨 InferenceService 的汇总告警，与每个 CR 生成的规则互补）
+prometheusRule:
+  enabled: false
+  labels: {}
+
+# ---------------------------------------------------------------- 其他
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# Operator 存活探针（kopf 提供 /healthz 端点）
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 15
+  periodSeconds: 20
+
+# 优雅停机：Operator 需要在退出前完成正在进行的调和
+terminationGracePeriodSeconds: 30

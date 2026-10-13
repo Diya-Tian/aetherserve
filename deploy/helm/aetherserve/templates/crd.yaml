@@ -1,0 +1,216 @@
+{{- if .Values.crd.install -}}
+{{/*
+InferenceService CRD
+--------------------
+从代码生成（本文件由 deploy/k8s/generate_manifests.py 的输出粘贴而来）。
+"代码即契约"：CRD 的 schema 直接来自 src/aetherserve/operator/crd.py 的 crd_manifest()，
+避免手写 YAML 与代码脱节。
+
+helm.sh/resource-policy: keep
+    阻止 helm uninstall 删除 CRD。**这一点极其重要**：
+    K8s 在删除 CRD 时会**级联删除该类型的所有自定义资源**，
+    如果 CRD 被 helm uninstall 带走，那么所有 InferenceService 都会被删掉，
+    Operator 也会随之把对应的 Deployment/Service 全部清理 —— 生产事故。
+    因此默认保留 CRD（由集群管理员单独管理其生命周期）。
+*/}}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: inferenceservices.aetherserve.io
+  labels:
+    {{- include "aetherserve.labels" . | nindent 4 }}
+  {{- if .Values.crd.keep }}
+  annotations:
+    helm.sh/resource-policy: keep
+  {{- end }}
+spec:
+  group: aetherserve.io
+  scope: Namespaced
+  names:
+    plural: inferenceservices
+    singular: inferenceservice
+    kind: InferenceService
+    shortNames:
+      - isvc
+    categories:
+      - ai
+      - serving
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      additionalPrinterColumns:
+        - name: Model
+          type: string
+          jsonPath: .spec.model
+        - name: Backend
+          type: string
+          jsonPath: .spec.backend
+        - name: Replicas
+          type: integer
+          jsonPath: .spec.replicas
+        - name: Ready
+          type: integer
+          jsonPath: .status.readyReplicas
+        - name: Canary
+          type: string
+          jsonPath: .status.canaryState
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+      schema:
+        openAPIV3Schema:
+          type: object
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              required:
+                - model
+              properties:
+                model:
+                  type: string
+                  minLength: 1
+                  description: 模型标识（HuggingFace 仓库名或本地路径）
+                image:
+                  type: string
+                  description: 网关镜像
+                replicas:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                port:
+                  type: integer
+                  minimum: 1
+                  maximum: 65535
+                backend:
+                  type: string
+                  enum:
+                    - echo
+                    - transformers
+                    - vllm
+                  description: 推理后端类型
+                quantization:
+                  type: string
+                  enum:
+                    - awq
+                    - gptq
+                    - fp8
+                    - none
+                maxModelLen:
+                  type: integer
+                  minimum: 128
+                gpuMemoryUtilization:
+                  type: number
+                  minimum: 0.1
+                  maximum: 1.0
+                maxBatchSize:
+                  type: integer
+                  minimum: 1
+                  description: 单批最大请求数
+                maxBatchTokens:
+                  type: integer
+                  minimum: 1
+                  description: 单批 token 预算（KV Cache 保护）
+                maxWaitMs:
+                  type: number
+                  minimum: 0
+                  description: 批构建最长等待，延迟与吞吐的权衡旋钮
+                resources:
+                  type: object
+                  properties:
+                    cpuRequest:
+                      type: string
+                    memoryRequest:
+                      type: string
+                    cpuLimit:
+                      type: string
+                    memoryLimit:
+                      type: string
+                    gpu:
+                      type: integer
+                      minimum: 0
+                      description: GPU 数量（扩展资源 nvidia.com/gpu）
+                autoscaling:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    minReplicas:
+                      type: integer
+                      minimum: 0
+                    maxReplicas:
+                      type: integer
+                      minimum: 1
+                    targetQueueDepth:
+                      type: integer
+                      minimum: 1
+                    targetKvCacheUtilization:
+                      type: number
+                      minimum: 0.1
+                      maximum: 1.0
+                    scaleDownStabilizationS:
+                      type: integer
+                      minimum: 0
+                    metrics:
+                      type: array
+                      items:
+                        type: string
+                        enum:
+                          - queue_depth
+                          - kv_cache
+                          - cpu
+                canary:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                    initialWeight:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                    step:
+                      type: integer
+                      minimum: 1
+                      maximum: 100
+                    maxErrorRate:
+                      type: number
+                      minimum: 0
+                      maximum: 1
+                    minSamples:
+                      type: integer
+                      minimum: 1
+                    analysisIntervalS:
+                      type: integer
+                      minimum: 5
+                env:
+                  type: object
+                  additionalProperties:
+                    type: string
+                nodeSelector:
+                  type: object
+                  additionalProperties:
+                    type: string
+                serviceMonitor:
+                  type: boolean
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  type: integer
+                replicas:
+                  type: integer
+                readyReplicas:
+                  type: integer
+                canaryWeight:
+                  type: integer
+                canaryState:
+                  type: string
+                endpoint:
+                  type: string
+                conditions:
+                  type: array
+                  items:
+                    type: object
+{{- end }}

@@ -1,0 +1,232 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: inferenceservices.aetherserve.io
+spec:
+  group: aetherserve.io
+  scope: Namespaced
+  names:
+    plural: inferenceservices
+    singular: inferenceservice
+    kind: InferenceService
+    shortNames:
+    - isvc
+    categories:
+    - ai
+    - serving
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - name: Model
+      type: string
+      jsonPath: .spec.model
+    - name: Backend
+      type: string
+      jsonPath: .spec.backend
+    - name: Replicas
+      type: integer
+      jsonPath: .spec.replicas
+    - name: Ready
+      type: integer
+      jsonPath: .status.readyReplicas
+    - name: Canary
+      type: string
+      jsonPath: .status.canaryState
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+    schema:
+      openAPIV3Schema:
+        type: object
+        required:
+        - spec
+        properties:
+          spec:
+            type: object
+            required:
+            - model
+            properties:
+              model:
+                type: string
+                minLength: 1
+              image:
+                type: string
+              replicas:
+                type: integer
+                minimum: 0
+                maximum: 100
+              port:
+                type: integer
+                minimum: 1
+                maximum: 65535
+              backend:
+                type: string
+                enum:
+                - echo
+                - transformers
+                - vllm
+              quantization:
+                type: string
+                enum:
+                - awq
+                - gptq
+                - fp8
+                - none
+              maxModelLen:
+                type: integer
+                minimum: 128
+              gpuMemoryUtilization:
+                type: number
+                minimum: 0.1
+                maximum: 1.0
+              maxBatchSize:
+                type: integer
+                minimum: 1
+              maxBatchTokens:
+                type: integer
+                minimum: 1
+              maxWaitMs:
+                type: number
+                minimum: 0
+              resources:
+                type: object
+                properties:
+                  cpuRequest:
+                    type: string
+                  memoryRequest:
+                    type: string
+                  cpuLimit:
+                    type: string
+                  memoryLimit:
+                    type: string
+                  gpu:
+                    type: integer
+                    minimum: 0
+              autoscaling:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  minReplicas:
+                    type: integer
+                    minimum: 0
+                  maxReplicas:
+                    type: integer
+                    minimum: 1
+                  targetQueueDepth:
+                    type: integer
+                    minimum: 1
+                  targetKvCacheUtilization:
+                    type: number
+                    minimum: 0.1
+                    maximum: 1.0
+                  scaleDownStabilizationS:
+                    type: integer
+                    minimum: 0
+                  metrics:
+                    type: array
+                    items:
+                      type: string
+                      enum:
+                      - queue_depth
+                      - kv_cache
+                      - cpu
+              canary:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                  initialWeight:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                  step:
+                    type: integer
+                    minimum: 1
+                    maximum: 100
+                  maxErrorRate:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                  minSamples:
+                    type: integer
+                    minimum: 1
+                  analysisIntervalS:
+                    type: integer
+                    minimum: 5
+              env:
+                type: object
+                additionalProperties:
+                  type: string
+              nodeSelector:
+                type: object
+                additionalProperties:
+                  type: string
+              serviceMonitor:
+                type: boolean
+          status:
+            type: object
+            properties:
+              observedGeneration:
+                type: integer
+              replicas:
+                type: integer
+              readyReplicas:
+                type: integer
+              canaryWeight:
+                type: integer
+              canaryState:
+                type: string
+              endpoint:
+                type: string
+              conditions:
+                type: array
+                items:
+                  type: object
+---
+apiVersion: aetherserve.io/v1alpha1
+kind: InferenceService
+metadata:
+  name: qwen-1-5b
+  namespace: ai-serving
+  labels:
+    app.kubernetes.io/name: aetherserve
+spec:
+  model: Qwen/Qwen2.5-1.5B-Instruct-AWQ
+  backend: vllm
+  quantization: awq
+  image: ghcr.io/aetherserve/gateway:0.1.0
+  replicas: 2
+  port: 8000
+  maxModelLen: 4096
+  gpuMemoryUtilization: 0.85
+  maxBatchSize: 16
+  maxBatchTokens: 8192
+  maxWaitMs: 20
+  resources:
+    cpuRequest: 1000m
+    memoryRequest: 2Gi
+    cpuLimit: 4000m
+    memoryLimit: 8Gi
+    gpu: 1
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    metrics:
+    - queue_depth
+    - kv_cache
+    targetQueueDepth: 16
+    targetKvCacheUtilization: 0.8
+    scaleDownStabilizationS: 300
+  canary:
+    enabled: true
+    initialWeight: 10
+    step: 20
+    maxErrorRate: 0.05
+    minSamples: 100
+  serviceMonitor: true
+  nodeSelector:
+    aetherserve.io/accelerator: nvidia

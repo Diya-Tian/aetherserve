@@ -1,0 +1,90 @@
+{{- if .Values.rbac.create -}}
+{{/*
+RBAC 最小权限原则说明
+-------------------
+这里刻意不使用 "*" 通配符，而是逐条列出 Operator 真正需要的动词。
+好处是权限可审计：审计员能一眼看出这个控制器能做什么，
+也能在集群安全策略收紧时（如 PodSecurity、OPA）顺利通过。
+
+需要的权限分四类：
+1. InferenceService（自定义资源）：get/list/watch + status 回写
+2. 子资源（Deployment/Service/HPA/PDB）：create/get/list/watch/patch/delete
+3. 事件（Event）：create（记录调和结果，便于 kubectl describe 排障）
+4. 监控 CR（ServiceMonitor/PrometheusRule）：动态客户端操作
+*/}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "aetherserve.fullname" . }}
+  labels:
+    {{- include "aetherserve.labels" . | nindent 4 }}
+rules:
+  # ---------------- 自定义资源：调和对象本身
+  - apiGroups: ["aetherserve.io"]
+    resources: ["inferenceservices"]
+    verbs: ["get", "list", "watch", "patch", "update"]
+  - apiGroups: ["aetherserve.io"]
+    resources: ["inferenceservices/status"]
+    verbs: ["get", "patch", "update"]
+  - apiGroups: ["aetherserve.io"]
+    resources: ["inferenceservices/finalizers"]
+    verbs: ["update"]
+
+  # ---------------- 子资源：Operator 负责生成的资源
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # ---------------- Pod 只读：用于统计就绪副本数回写 status
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # ---------------- 事件：调和结果写入 Event，便于 kubectl describe 排障
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+  # ---------------- 监控 CR（Prometheus Operator 提供，可能未安装）
+  # 未安装时这些 API 组不存在，K8s 会忽略该规则，不影响其他权限
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "prometheusrules"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # ---------------- CRD 只读：Operator 启动时校验自己的 CRD 是否已安装
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+
+  # ---------------- 自身 Leadeship（未来引入 leader election 时使用）
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "aetherserve.fullname" . }}
+  labels:
+    {{- include "aetherserve.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "aetherserve.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "aetherserve.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

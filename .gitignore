@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+
+# 虚拟环境
+.venv/
+venv/
+env/
+
+# 测试与覆盖率
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# 静态检查缓存
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.pre-commit-config.yaml.bak
+
+# 压测产物（保留 bench/results/*.md 与 *.json 作为报告证据，
+# 但忽略临时对比文件）
+bench/results/tmp-*
+bench/results/*.log
+
+# 简历生成产物（源脚本在 resume/build_resume.py，产物按需重新生成）
+resume/preview-*/
+resume/checks.json
+
+# 个人求职材料（含手机号等隐私信息，绝不提交到公开仓库）
+# 注意：resume/build_resume.py 是生成脚本，保留在仓库中；产物 PDF/DOCX 不入库。
+田钦元*.pdf
+田钦元*.docx
+*.docx
+*.pdf
+
+# 权限修复报告（DSH 沙箱环境产物，不属于项目内容）
+acl-recovery/
+
+# 临时诊断脚本与日志
+tools/diag_*.py
+*.log
+tmp*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

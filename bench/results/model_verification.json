@@ -1,0 +1,50 @@
+{
+  "config": {
+    "concurrency": 16,
+    "requests": 64,
+    "max_tokens": 32,
+    "prompt_tokens": 256,
+    "batch_size_limit": 16,
+    "hardware": {
+      "prefill_ms_per_token": 0.22,
+      "decode_base_ms": 9.0,
+      "decode_per_request_ms": 0.55,
+      "max_batch_for_saturation": 32
+    }
+  },
+  "steps_observed": 2048,
+  "unique_decode_steps": 130,
+  "batch_windows": 5,
+  "step_batch_histogram": {
+    "4": 4,
+    "12": 12,
+    "16": 2032
+  },
+  "mean_step_batch": 15.953,
+  "peak_step_batch": 16,
+  "model_prefill_ms": 294.8,
+  "model_decode_ms": 1919.539,
+  "model_total_ms": 2214.339,
+  "observed_sleep_decode_ms": 2624.0,
+  "observed_total_ms": 2918.8,
+  "measured_ms": 2836.729,
+  "deviation_pct": 2.812,
+  "step_overhead_ratio": 1.367,
+  "measured_qps": 22.561,
+  "serial_model_total_ms": 19853.2,
+  "serial_observed_estimate_ms": 27031.033,
+  "model_speedup": 8.966,
+  "measured_speedup_vs_serial": 9.529,
+  "engine_stats": {
+    "completed_batches": 5,
+    "failed_batches": 0,
+    "in_flight_batches": 0,
+    "peak_in_flight_batches": 1,
+    "peak_batch_size": 16,
+    "total_requests": 65,
+    "total_tokens": 19469
+  },
+  "measured_gpu_utilization": 0.5882,
+  "analytic_step_gain_at_peak": 10.236,
+  "verdict": "PASS"
+}

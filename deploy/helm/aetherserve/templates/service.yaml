@@ -1,0 +1,22 @@
+{{/*
+Operator 自身的指标 Service
+说明：Operator 用 kopf 的 liveness endpoint 暴露 /healthz；
+本项目已在 handlers 中注册了 Prometheus 指标，这里把端口暴露出来供 ServiceMonitor 抓取。
+*/}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "aetherserve.fullname" . }}-metrics
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aetherserve.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "aetherserve.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: operator
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

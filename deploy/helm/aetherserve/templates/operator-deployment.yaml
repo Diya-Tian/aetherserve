@@ -1,0 +1,113 @@
+{{- if .Values.operator.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "aetherserve.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aetherserve.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.operator.replicas }}
+  selector:
+    matchLabels:
+      {{- include "aetherserve.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: operator
+  strategy:
+    type: Recreate   # 控制器不做滚动更新：避免新旧副本同时调和同一批 CR
+  template:
+    metadata:
+      labels:
+        {{- include "aetherserve.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: operator
+      annotations:
+        # Operator 自身的指标抓取配置
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+        {{- with .Values.operator.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "aetherserve.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      containers:
+        - name: operator
+          image: {{ include "aetherserve.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "-m"
+            - "aetherserve.operator.main"
+            {{- if eq .Values.operator.logLevel "DEBUG" }}
+            - "--verbose"
+            {{- end }}
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: AETHERSERVE_OPERATOR_WORKERS
+              value: {{ .Values.operator.workers | quote }}
+            - name: AETHERSERVE_LOG_LEVEL
+              value: {{ .Values.operator.logLevel | quote }}
+            {{- if .Values.operator.prometheusUrl }}
+            - name: AETHERSERVE_PROMETHEUS_URL
+              value: {{ .Values.operator.prometheusUrl | quote }}
+            {{- end }}
+            # 集群内运行：kopf 需要知道自己的命名空间以定位 LeaderElection 等资源
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            {{- with .Values.operator.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.operator.resources | nindent 12 }}
+          {{- if .Values.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: 3
+            failureThreshold: 3
+          {{- end }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- if .Values.operator.nodeSelector }}
+      nodeSelector:
+        {{- toYaml .Values.operator.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.operator.tolerations }}
+      tolerations:
+        {{- toYaml .Values.operator.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.operator.affinity }}
+      affinity:
+        {{- toYaml .Values.operator.affinity | nindent 8 }}
+      {{- else if .Values.operator.podAntiAffinity.enabled }}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "aetherserve.selectorLabels" . | nindent 20 }}
+                    app.kubernetes.io/component: operator
+      {{- end }}
+{{- end }}

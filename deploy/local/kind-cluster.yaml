@@ -1,0 +1,44 @@
+# A local kind cluster for AetherServe
+#
+# 用法：
+#   kind create cluster --name aetherserve --config deploy/local/kind-cluster.yaml
+#
+# 说明：
+# - 1 个控制面 + 2 个工作节点：足以演示"多副本调度、反亲和、PDB、滚动更新"，
+#   同时把内存占用控制在 16GB 开发机可承受的范围内；
+# - 用 extraPortMappings 把 80/443 映射到宿主机，便于本地用 curl 访问 Ingress；
+# - 节点带 `aetherserve.io/accelerator=nvidia` 标签来"模拟 GPU 节点"，
+#   使 GPU 相关的 nodeSelector/tolerations 路径可以在无 GPU 的机器上被真实验证。
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: aetherserve
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 8443
+        protocol: TCP
+  - role: worker
+    labels:
+      # 模拟 GPU 节点：让 nodeSelector 路径可被验证
+      aetherserve.io/accelerator: "nvidia"
+      aetherserve.io/gpu-model: "mock-l4-24g"
+      aetherserve.io/gpu-memory: "24576"
+  - role: worker
+    labels:
+      aetherserve.io/accelerator: "nvidia"
+      aetherserve.io/gpu-model: "mock-l4-24g"
+      aetherserve.io/gpu-memory: "24576"
+networking:
+  # 默认 CNI 即可满足本项目需要（无需 NetworkPolicy 高级特性）
+  apiServerAddress: "127.0.0.1"
+  kubeProxyMode: "iptables"
