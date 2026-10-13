@@ -172,16 +172,49 @@ jobs:
 
       - name: Smoke test image
         run: |
+          set -x
+          # 用与生产一致的方式启动：通过环境变量注入配置。
+          # 这一步曾经抓到过一个真实 bug：AETHERSERVE_BACKEND 与 Settings.backend
+          # 字段名冲突，导致 pydantic-settings 把字符串当 JSON 解析、服务启动即崩。
+          # 本地用默认值跑不会暴露，只有这种"按生产方式注入配置"的测试才能发现。
           docker run -d --name gateway-smoke -p 8000:8000 \
-            -e AETHERSERVE_BACKEND=echo aetherserve/gateway:ci-${{ github.sha }}
+            -e AETHERSERVE_BACKEND=echo \
+            -e AETHERSERVE_MODEL=echo-1 \
+            -e AETHERSERVE_ENVIRONMENT=prod \
+            aetherserve/gateway:ci-${{ github.sha }}
+
+          # 等待就绪；若容器提前退出则立即失败并打印日志（避免空等 30 秒才报错）
+          ready=0
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:8000/healthz > /dev/null; then break; fi
+            if ! docker inspect -f '{{.State.Running}}' gateway-smoke | grep -q true; then
+              echo "::error::容器在就绪前退出"
+              docker logs gateway-smoke
+              exit 1
+            fi
+            if curl -sf http://localhost:8000/healthz > /dev/null; then ready=1; break; fi
             sleep 1
           done
+          if [ "$ready" -ne 1 ]; then
+            echo "::error::30 秒内未通过健康检查"
+            docker logs gateway-smoke
+            exit 1
+          fi
+
+          echo "--- /healthz ---"
           curl -sf http://localhost:8000/healthz
+          echo ""
+          echo "--- /v1/models ---"
+          curl -sf http://localhost:8000/v1/models -H 'Authorization: Bearer sk-demo-001'
+          echo ""
+          echo "--- /v1/chat/completions ---"
           curl -sf http://localhost:8000/v1/chat/completions \
             -H 'Authorization: Bearer sk-demo-001' \
             -H 'Content-Type: application/json' \
             -d '{"model":"echo-1","messages":[{"role":"user","content":"hi"}],"max_tokens":4}'
+          echo ""
+          echo "--- /metrics（确认 LLM 专项指标已暴露）---"
+          curl -sf http://localhost:8000/metrics | grep -E '^aetherserve_(requests_total|batch_size|queue_depth)' | head -5
+          echo ""
+          echo "--- 容器日志 ---"
           docker logs gateway-smoke | tail -20
           docker rm -f gateway-smoke

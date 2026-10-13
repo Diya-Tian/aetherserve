@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import BaseModel, ConfigDict, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -80,10 +80,31 @@ class CircuitBreakerSettings(BaseSettings):
     half_open_max_calls: int = Field(default=2, ge=1, description="半开态允许的探测请求数")
 
 
-class Settings(BaseSettings):
-    """聚合配置入口。"""
+class Settings(BaseModel):
+    """聚合配置入口。
 
-    model_config = SettingsConfigDict(env_prefix="AETHERSERVE_", extra="ignore")
+    ⚠️ 为什么这里用 ``BaseModel`` 而不是 ``BaseSettings``（这是一个修复过的真实 bug）
+    -------------------------------------------------------------------------
+    子配置块（``BatchingSettings`` 等）本身就是 ``BaseSettings``，会各自读取
+    ``AETHERSERVE_*`` 环境变量。如果聚合类也用 ``BaseSettings`` 且同样带
+    ``env_prefix="AETHERSERVE_"``，就会出现**环境变量名冲突**：
+
+        Settings.backend  ←→  AETHERSERVE_BACKEND
+
+    pydantic-settings 会认为 ``AETHERSERVE_BACKEND=echo`` 是在给一个"复杂类型字段"
+    （``BackendSettings``）赋值，于是尝试把字符串 ``echo`` 当 JSON 解析 →
+    抛 ``JSONDecodeError``，**服务直接启动失败**。
+
+    这个 bug 在本地开发时不会暴露（因为没人设环境变量），
+    但会 100% 命中生产部署（K8s 通过环境变量注入配置），
+    是 CI 的镜像 smoke test 先抓出来的。
+
+    修法：聚合类不参与环境变量解析（用 ``BaseModel``），
+    各子配置块的实例在 ``from_env()`` 里显式构造 —— 优先级清晰，
+    也彻底消除了父子字段名冲突的可能。
+    """
+
+    model_config = ConfigDict(extra="ignore")
 
     service_name: str = "aetherserve"
     environment: str = Field(default="dev", description="dev | staging | prod")
@@ -93,6 +114,22 @@ class Settings(BaseSettings):
     ratelimit: RateLimitSettings = Field(default_factory=RateLimitSettings)
     backend: BackendSettings = Field(default_factory=BackendSettings)
     circuit_breaker: CircuitBreakerSettings = Field(default_factory=CircuitBreakerSettings)
+
+    @classmethod
+    def from_env(cls) -> Settings:
+        """从环境变量组装完整配置。
+
+        优先级（后者覆盖前者）：代码默认值 → 环境变量。
+        子配置块的 ``env_prefix`` 各自独立，互不干扰：
+        ``AETHERSERVE_BATCH_*``、``AETHERSERVE_RATELIMIT_*``、
+        ``AETHERSERVE_CB_*``，以及用于后端/服务项的裸 ``AETHERSERVE_*``。
+        """
+        return cls(
+            batching=BatchingSettings(),
+            ratelimit=RateLimitSettings(),
+            backend=BackendSettings(),
+            circuit_breaker=CircuitBreakerSettings(),
+        )
 
     def parsed_api_keys(self) -> dict[str, tuple[str, float, int]]:
         """解析 API-Key 配置。
@@ -117,4 +154,4 @@ class Settings(BaseSettings):
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """进程内单例，避免每次请求重复解析环境变量。"""
-    return Settings()
+    return Settings.from_env()
