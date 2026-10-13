@@ -6,7 +6,7 @@
 一次推理请求的延迟由 **排队 → 预填充(prefill) → 逐 token 解码(decode)** 三段构成，
 其中 prefill 主要吃算力、decode 主要吃显存带宽。
 只有把 TTFT（首 token 时间）、TPOT（相邻 token 间隔）、批大小、KV Cache 水位分开观测，
-才能在面试里回答"**你的瓶颈在哪一段，怎么证明**"。
+才能明确回答"**瓶颈在哪一段，怎么证明**"。
 """
 
 from __future__ import annotations

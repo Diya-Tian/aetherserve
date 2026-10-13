@@ -1,4 +1,4 @@
-"""压测入口：产出可复现的性能数据（简历量化成果的来源）。
+"""压测入口：产出可复现的性能数据。
 
 用法::
 
@@ -13,7 +13,7 @@
 
 输出:
     bench/results/<timestamp>-<mode>.json    原始数据
-    bench/results/<timestamp>-<mode>.md      Markdown 表格（可直接贴进简历/报告）
+    bench/results/<timestamp>-<mode>.md      Markdown 表格（可直接嵌入报告）
 """
 
 from __future__ import annotations

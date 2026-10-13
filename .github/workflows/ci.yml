@@ -100,16 +100,23 @@ jobs:
       - name: Verify simulation model (解析预测 vs 实测，必须 PASS)
         run: python bench/verify_model.py
 
-      - name: Benchmark (serial vs continuous batching)
+      - name: Benchmark smoke test (串行 vs 连续批处理)
+        # 注意：输出写到临时目录，**不要**写进 bench/results/。
+        # bench/results/ 是"已发布的基准数据"，供 bench/verify_claims.py 对账；
+        # 而 CI 用的是缩减参数（请求数与 token 数都更小）以保证快速反馈，
+        # 若混入同一目录，会让对账脚本取到参数不同的数据而误报不一致。
         run: |
           python bench/run_bench.py --mode sim \
-            --concurrency 1,8,16 --requests 32 --max-tokens 16 --prompt-tokens 128
+            --concurrency 1,8,16 --requests 32 --max-tokens 16 --prompt-tokens 128 \
+            --out-dir /tmp/ci-bench
 
       - name: Upload benchmark results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: bench/results/
+          path: |
+            /tmp/ci-bench/
+            bench/results/model_verification.json
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------- 部署清单校验

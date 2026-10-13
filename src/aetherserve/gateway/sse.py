@@ -7,7 +7,7 @@ OpenAI 的流式协议 = **SSE over HTTP/1.1 分块传输**，格式为：
     data: {"id":"...","choices":[{"delta":{"content":"你"}}]}\\n\\n
     data: [DONE]\\n\\n
 
-工程上必须处理的坑（都是面试可深挖的点）：
+工程上必须处理的坑：
 1. **禁用中间层缓冲**：必须回 ``X-Accel-Buffering: no`` 与 ``Cache-Control: no-cache``，
    否则 nginx/网关会攒满缓冲才下发，用户会感觉"卡一下然后全出来"（TTFT 指标失真）；
 2. **保活心跳**：SSE 连接可能被中间设备按空闲超时切断，需周期性发注释行 ``: ping``；
