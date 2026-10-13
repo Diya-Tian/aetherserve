@@ -35,16 +35,13 @@ htmlcov/
 bench/results/tmp-*
 bench/results/*.log
 
-# 简历生成产物（源脚本在 resume/build_resume.py，产物按需重新生成）
-resume/preview-*/
-resume/checks.json
-
-# 个人求职材料（含手机号等隐私信息，绝不提交到公开仓库）
-# 注意：resume/build_resume.py 是生成脚本，保留在仓库中；产物 PDF/DOCX 不入库。
-田钦元*.pdf
-田钦元*.docx
+# 个人文档与办公文件类型：本仓库是纯代码项目，不接受任何文档/演示/表格产物
 *.docx
+*.doc
 *.pdf
+*.xlsx
+*.pptx
+*.odt
 
 # 权限修复报告（DSH 沙箱环境产物，不属于项目内容）
 acl-recovery/
