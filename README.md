@@ -148,6 +148,8 @@ python bench/verify_claims.py         # 文档数字 vs 原始数据对账
 | 覆盖率 | **94%**（含 Operator 集群 I/O 层与 kopf 回调，均以假客户端打桩） |
 | 静态检查 | ruff（含 ASYNC/SIM/B/RUF 规则集）+ mypy |
 | 清单合法性 | 生成的 K8s 清单用官方模型反序列化校验（`V1Deployment`/`V1Service`/`V1HPA` 等） |
+| **冷启动验证** | 在**全新 venv** 里按 README 操作，验证"安装 → 起服务 → 鉴权 → 流式 → 指标 → 并发"共 **24 项全部通过**（`make verify-coldstart`） |
+| 文档一致性 | README 链接 / make 目标 / 功能声称 / 隐私 自动校验（`make verify-docs`、`make verify-readme`） |
 
 ```bash
 make test        # 全量测试

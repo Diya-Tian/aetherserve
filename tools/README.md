@@ -7,6 +7,7 @@
 |---|---|---|
 | [`check_docs.py`](check_docs.py) | 文档一致性：README 相对链接、make 目标、脚本引用、孤儿文档、隐私检查 | 改文档或 Makefile 后，CI 必跑 |
 | [`check_readme.py`](check_readme.py) | README 声明 vs 仓库现实：声明的路径是否真实存在、是否声称了未实现的组件、是否含个人求职材料 | 改 README 后，CI 必跑 |
+| [`coldstart_check.py`](coldstart_check.py) | **冷启动端到端验证**：在全新 venv 里按 README 操作，验证安装→起服务→鉴权→流式→指标→并发共 24 项 | 发布前手动跑（耗时 1-3 分钟，不进 CI） |
 
 > 其他校验脚本按职责就近放置，便于与所校验的对象一起维护：
 > - `bench/verify_model.py` — 仿真模型自校验（解析预测 vs 实测）
@@ -27,6 +28,7 @@
 | 仿真实现有 bug 但结果"看起来合理" | 结论不可信 | `verify_model.py` |
 | README 链接失效 / make 目标不存在 / 孤儿文档 | 项目显得不可信、不可用 | `check_docs.py` |
 | **README 声称了不存在的东西**（目录、组件、文档） | 读者按图索骥找不到，直接怀疑项目真实性 | `check_readme.py` |
+| **"克隆下来就能跑"其实跑不起来**（缺依赖、入口错误） | 评审者一次尝试失败就不会再看 | `coldstart_check.py` |
 | **个人求职材料混入开源仓库** | 泄露手机号等隐私，且与项目工程无关 | `check_docs.py` / `check_readme.py` 的隐私检查 |
 
 把一致性检查写成脚本而不是"靠人记得"，是这套工程质量的基础。
