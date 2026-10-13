@@ -21,9 +21,9 @@ keywords:
   - kubernetes
   - operator
   - cloud-native
-home: https://github.com/your-name/aetherserve
+home: https://github.com/Diya-Tian/aetherserve
 sources:
-  - https://github.com/your-name/aetherserve
+  - https://github.com/Diya-Tian/aetherserve
 maintainers:
   - name: AetherServe Contributors
 annotations:

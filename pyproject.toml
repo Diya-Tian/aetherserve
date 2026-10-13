@@ -53,8 +53,8 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-name/aetherserve"
-Repository = "https://github.com/your-name/aetherserve"
+Homepage = "https://github.com/Diya-Tian/aetherserve"
+Repository = "https://github.com/Diya-Tian/aetherserve"
 
 [project.scripts]
 aetherserve = "aetherserve.gateway.app:main"

@@ -7,7 +7,7 @@
 ## 1. 环境准备
 
 ```bash
-git clone https://github.com/<your-name>/aetherserve.git
+git clone https://github.com/Diya-Tian/aetherserve.git
 cd aetherserve
 make install       # 创建 .venv 并安装 [dev,operator] 依赖
 make test          # 确认基线全绿（应为 245 passed）
