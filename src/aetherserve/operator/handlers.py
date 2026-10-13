@@ -200,8 +200,14 @@ def _list_owned(namespace: str, name: str, uid: str | None = None) -> list[dict[
 
     归属判断优先用 **ownerReference uid**，而不是按资源名做子串匹配：
     后者在多个 CR 名字互为前缀时会张冠李戴，进而误删别人的资源。
+
+    容错策略：只捕获 ``ApiException``。权限不足或 API 组不存在（如集群未装
+    Prometheus Operator 时的 monitoring.coreos.com）属于**可预期的环境差异**，
+    应当降级为"该类型没有资源"；而其它异常（AttributeError/TypeError 等）
+    说明代码有 bug，必须向上抛出，否则会被静默吞掉变成"资源莫名消失"。
     """
     from kubernetes import client
+    from kubernetes.client.exceptions import ApiException
 
     found: list[dict[str, Any]] = []
     api_client = client.ApiClient()
@@ -212,25 +218,24 @@ def _list_owned(namespace: str, name: str, uid: str | None = None) -> list[dict[
         if owned_by(raw, uid):
             found.append(raw)
 
-    try:
-        for dep in client.AppsV1Api().list_namespaced_deployment(namespace, label_selector=selector).items:
-            _consider(dep)
-        for svc in client.CoreV1Api().list_namespaced_service(namespace, label_selector=selector).items:
-            _consider(svc)
-        for hpa in (
-            client.AutoscalingV2Api()
-            .list_namespaced_horizontal_pod_autoscaler(namespace, label_selector=selector)
-            .items
-        ):
-            _consider(hpa)
-        for pdb in (
-            client.PolicyV1Api()
-            .list_namespaced_pod_disruption_budget(namespace, label_selector=selector)
-            .items
-        ):
-            _consider(pdb)
-    except Exception as exc:  # pragma: no cover - 需要真实集群
-        log.warning("list_owned_failed namespace=%s name=%s err=%s", namespace, name, exc)
+    def _collect(fetch: Any) -> None:
+        """逐个 API 类型收集，单类型失败不影响其它类型。"""
+        try:
+            for item in fetch().items:
+                _consider(item)
+        except ApiException as exc:
+            log.warning("list_owned_failed namespace=%s name=%s err=%s", namespace, name, exc)
+
+    _collect(lambda: client.AppsV1Api().list_namespaced_deployment(namespace, label_selector=selector))
+    _collect(lambda: client.CoreV1Api().list_namespaced_service(namespace, label_selector=selector))
+    _collect(
+        lambda: client.AutoscalingV2Api().list_namespaced_horizontal_pod_autoscaler(
+            namespace, label_selector=selector
+        )
+    )
+    _collect(
+        lambda: client.PolicyV1Api().list_namespaced_pod_disruption_budget(namespace, label_selector=selector)
+    )
     return found
 
 
@@ -312,11 +317,15 @@ def register_handlers() -> None:
 
         name = meta.get("name", "")
         namespace = meta.get("namespace", "default")
+        # CR 自身的 uid 必须传下去：_list_owned 用它做**归属判断**，
+        # 否则会退化为"按 managed-by 标签归属"，在多个 CR 共用标签的场景下
+        # 可能把别人的子资源当成自己的（进而误删）。这是被 handler 测试抓出来的缺陷。
+        uid = meta.get("uid")
         started = time.monotonic()
 
         with metrics.RECONCILE_DURATION.labels(resource="inferenceservice").time():
             try:
-                existing = _list_owned(namespace, name)
+                existing = _list_owned(namespace, name, uid)
                 cr = {"metadata": meta, "spec": spec, "status": body.get("status", {})}
                 plan = plan_reconcile(cr, existing, canary_metrics=_fetch_canary_metrics(namespace, name))
                 applied = _apply_plan(plan) if not plan.discovered else {}
@@ -352,15 +361,17 @@ def register_handlers() -> None:
         if not (spec.get("canary") or {}).get("enabled"):
             return None
 
+        namespace = meta.get("namespace", "default")
+        name = meta.get("name", "")
         plan = plan_reconcile(
             {"metadata": meta, "spec": spec, "status": body.get("status", {})},
-            _list_owned(meta.get("namespace", "default"), meta.get("name", "")),
-            canary_metrics=_fetch_canary_metrics(meta.get("namespace", "default"), meta.get("name", "")),
+            _list_owned(namespace, name, meta.get("uid")),
+            canary_metrics=_fetch_canary_metrics(namespace, name),
         )
         _apply_plan(plan)
         log.info(
             "canary_tick name=%s weight=%s state=%s",
-            meta.get("name"),
+            name,
             plan.status.canary_weight,
             plan.status.canary_state,
         )

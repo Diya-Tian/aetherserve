@@ -10,8 +10,8 @@
   </a>
   <img alt="python" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-blue">
   <img alt="kubernetes" src="https://img.shields.io/badge/kubernetes-1.29%2B-326CE5">
-  <img alt="tests" src="https://img.shields.io/badge/tests-263%20passed-brightgreen">
-  <img alt="coverage" src="https://img.shields.io/badge/coverage-86%25-green">
+  <img alt="tests" src="https://img.shields.io/badge/tests-302%20passed-brightgreen">
+  <img alt="coverage" src="https://img.shields.io/badge/coverage-94%25-green">
   <img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-blue">
 </p>
 
@@ -35,7 +35,7 @@ AetherServe 是一套面向大语言模型（LLM）的**多租户推理服务平
 | **弹性伸缩** | `operator/` + 自定义指标 | 队列深度 & KV Cache 水位驱动 HPA |
 | **GPU 资源约束** | `operator/builders.py` | 通过 nodeSelector + tolerations 把 GPU 服务限定到 GPU 节点；显存超卖防护依赖准入预算（见 `engine/`） |
 | **可观测性** | `observability/` | RED 指标 + LLM 专项指标（TTFT/TPOT/批大小/KV 水位） |
-| **质量保障** | `tests/` + `.github/workflows/ci.yml` | 263 个单测 + ruff + mypy + 4 个自动化校验（模型/数字/Chart/文档） |
+| **质量保障** | `tests/` + `.github/workflows/ci.yml` | 302 个单测 + ruff + mypy + 4 个自动化校验（模型/数字/Chart/文档） |
 
 ---
 
@@ -144,8 +144,8 @@ python bench/verify_claims.py         # 文档数字 vs 原始数据对账
 
 | 项目 | 状态 |
 |---|---|
-| 单元/集成测试 | **263 个用例全部通过**（连跑 4 次验证无 flaky） |
-| 覆盖率 | **86%**（唯一未覆盖模块为 `operator/handlers.py`，需真实集群） |
+| 单元/集成测试 | **302 个用例全部通过**（连跑 4 次验证无 flaky） |
+| 覆盖率 | **94%**（含 Operator 集群 I/O 层与 kopf 回调，均以假客户端打桩） |
 | 静态检查 | ruff（含 ASYNC/SIM/B/RUF 规则集）+ mypy |
 | 清单合法性 | 生成的 K8s 清单用官方模型反序列化校验（`V1Deployment`/`V1Service`/`V1HPA` 等） |
 
