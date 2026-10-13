@@ -10,9 +10,38 @@
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def tracked_files() -> list[str]:
+    """列出 git 已跟踪的文件。
+
+    用 ``git ls-files`` 而不是遍历目录，因为只有它反映"真正会进仓库的内容" ——
+    遍历目录会把未跟踪的临时文件也算进来，产生误报。
+    """
+    try:
+        result = subprocess.run(
+            ["git", "ls-files"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if result.returncode == 0:
+            return [line.strip().replace("\\", "/") for line in result.stdout.splitlines() if line.strip()]
+    except FileNotFoundError:
+        pass
+    excluded = {".git", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache", ".mypy_cache", "acl-recovery"}
+    return [
+        str(p.relative_to(REPO_ROOT)).replace("\\", "/")
+        for p in REPO_ROOT.rglob("*")
+        if p.is_file() and not any(part in excluded for part in p.parts)
+    ]
 
 
 def main() -> int:
@@ -69,7 +98,11 @@ def main() -> int:
     # 4) docs/ 下每个文档都应被 README 或其它文档引用（避免"写了没人看的孤儿文档"）
     print("\n[4] docs/ 文档的可达性")
     docs = sorted((REPO_ROOT / "docs").glob("*.md"))
-    all_md = "\n".join(p.read_text(encoding="utf-8") for p in [REPO_ROOT / "README.md", *docs] if p.exists())
+    # 扫描范围：仓库内所有 Markdown（含 tools/、deploy/ 等子目录）
+    scan_files = [REPO_ROOT / "README.md", *docs]
+    scan_files += sorted(REPO_ROOT.glob("tools/*.md"))
+    scan_files += sorted(REPO_ROOT.glob("deploy/**/*.md"))
+    all_md = "\n".join(p.read_text(encoding="utf-8") for p in scan_files if p.exists())
     for doc in docs:
         name = doc.name
         # 统计在 README + 其他文档中被引用的次数（自身引用不计）
@@ -79,6 +112,20 @@ def main() -> int:
         else:
             ok = False
             print(f"  [WARN] {name}（未被任何文档引用）")
+
+    # 5) 隐私保护：开源仓库中不得出现个人求职材料
+    #    简历与求职说明属于个人材料，与项目工程无关，且常含手机号等隐私信息。
+    print("\n[5] 隐私检查：仓库内不得含个人求职材料")
+    files = tracked_files()
+    personal = ("简历", "resume/", "cover-letter", "求职")
+    offenders = [f for f in files if any(pat in f for pat in personal)]
+    if offenders:
+        ok = False
+        print("  [FAIL] 发现个人求职材料（必须移出仓库）:")
+        for f in offenders:
+            print(f"         - {f}")
+    else:
+        print(f"  [OK  ] 已检查 {len(files)} 个受版本控制的文件，无个人求职材料")
 
     print()
     print("=" * 78)

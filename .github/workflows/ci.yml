@@ -150,6 +150,9 @@ jobs:
       - name: Verify documentation consistency
         run: python tools/check_docs.py
 
+      - name: Verify README claims match the repository
+        run: python tools/check_readme.py
+
   # ---------------------------------------------------------------- 镜像构建
   build:
     name: Build Container Image

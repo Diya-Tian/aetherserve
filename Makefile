@@ -78,7 +78,10 @@ verify-chart:  ## 校验 Helm Chart（lint + 官方模型反序列化 + 安全�
 verify-docs:  ## 文档一致性（README 链接、make 目标、脚本引用、孤儿文档）
 	$(VENV)/bin/python tools/check_docs.py
 
-verify-all: verify verify-claims verify-chart verify-docs  ## 跑完全部校验
+verify-readme:  ## README 声明与仓库现实一致性（路径、链接、功能声称、隐私）
+	$(VENV)/bin/python tools/check_readme.py
+
+verify-all: verify verify-claims verify-chart verify-docs verify-readme  ## 跑完全部校验
 
 render:  ## 渲染 Helm 清单到本地（便于 review）
 	helm template aetherserve deploy/helm/aetherserve --namespace $(NAMESPACE) > deploy/helm/rendered.yaml

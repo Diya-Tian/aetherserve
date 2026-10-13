@@ -33,9 +33,9 @@ AetherServe 是一套面向大语言模型（LLM）的**多租户推理服务平
 | **可插拔后端** | `backends/` | vLLM / Transformers / Echo 三实现，统一抽象接口 |
 | **声明式交付** | `operator/` | CRD `InferenceService` + 调和循环自动生成 K8s 资源 |
 | **弹性伸缩** | `operator/` + 自定义指标 | 队列深度 & KV Cache 水位驱动 HPA |
-| **GPU 调度** | `scheduler-plugin/` (Go) | Filter/Score 扩展：显存装箱率优先，防超卖 |
-| **可观测性** | `observability/` | RED 指标 + LLM 专项指标（TTFT/TPOT/批大小/KV 命中） |
-| **质量保障** | `tests/` + `.github/workflows/ci.yml` | 单测 + kind 端到端 + ruff + mypy |
+| **GPU 资源约束** | `operator/builders.py` | 通过 nodeSelector + tolerations 把 GPU 服务限定到 GPU 节点；显存超卖防护依赖准入预算（见 `engine/`） |
+| **可观测性** | `observability/` | RED 指标 + LLM 专项指标（TTFT/TPOT/批大小/KV 水位） |
+| **质量保障** | `tests/` + `.github/workflows/ci.yml` | 263 个单测 + ruff + mypy + 4 个自动化校验（模型/数字/Chart/文档） |
 
 ---
 
@@ -88,7 +88,7 @@ make dev
 > 仿真基于 Transformer 推理的物理事实——Prefill 受算力限制（线性）、Decode 受显存带宽限制
 > （权重读取成本被批内摊薄），因此**相对关系**与真实引擎一致。
 > 数据可信度由 `bench/verify_model.py` 独立校验：解析模型预测 vs 实测墙钟，**偏差 < 3%**（阈值 15%）。
-> 并以 `bench/verify_claims.py` 自动对账"文档中的数字 vs 原始数据"，保证简历/报告可复现。
+> 并以 `bench/verify_claims.py` 自动对账"文档中的数字 vs 原始数据"，保证文档与报告可复现。
 
 ### 串行推理 vs 连续批处理（同并发窗口对比）
 
@@ -166,7 +166,6 @@ make lint        # ruff + mypy
 | [`docs/性能测试报告.md`](docs/性能测试报告.md) | 测试方法、完整数据、调参建议、已知局限 | 关心性能与数据可信度 |
 | [`docs/面试问答手册.md`](docs/面试问答手册.md) | JD 逐条对答、深挖追问预案、手写代码准备方向 | 准备面试 |
 | [`docs/部署与本地验证.md`](docs/部署与本地验证.md) | 从零到跑通：WSL2 → kind → Helm → Operator 验证 → 监控 | 想实际部署运行 |
-| [`docs/简历修改说明.md`](docs/简历修改说明.md) | 简历诊断结论、逐项改造理由、待填数据清单 | 关注简历与项目经历的对应 |
 
 ## 架构
 
@@ -198,7 +197,6 @@ src/aetherserve/
 ├── backends/         # 推理后端插件：vllm / transformers / echo
 ├── observability/    # Prometheus 指标、OTel 追踪、结构化日志
 └── operator/         # Kubernetes Operator（CRD + 调和循环 + 灰度）
-scheduler-plugin/     # Go 调度器扩展（GPU 显存装箱）
 deploy/               # Helm Chart、K8s 清单、kind 集群定义
 bench/                # locust 压测脚本与结果
 tests/                # 单元测试与 kind 端到端测试
