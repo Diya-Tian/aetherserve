@@ -5,10 +5,14 @@
 </p>
 
 <p align="center">
-  <img alt="python" src="https://img.shields.io/badge/python-3.11%2B-blue">
-  <img alt="k8s" src="https://img.shields.io/badge/kubernetes-1.29%2B-326CE5">
-  <img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-green">
-  <img alt="ci" src="https://img.shields.io/badge/ci-github--actions-black">
+  <a href="https://github.com/Diya-Tian/aetherserve/actions/workflows/ci.yml">
+    <img alt="CI" src="https://github.com/Diya-Tian/aetherserve/actions/workflows/ci.yml/badge.svg">
+  </a>
+  <img alt="python" src="https://img.shields.io/badge/python-3.11%20%7C%203.12-blue">
+  <img alt="kubernetes" src="https://img.shields.io/badge/kubernetes-1.29%2B-326CE5">
+  <img alt="tests" src="https://img.shields.io/badge/tests-263%20passed-brightgreen">
+  <img alt="coverage" src="https://img.shields.io/badge/coverage-86%25-green">
+  <img alt="license" src="https://img.shields.io/badge/license-Apache--2.0-blue">
 </p>
 
 AetherServe 是一套面向大语言模型（LLM）的**多租户推理服务平台**。它对业务方暴露 OpenAI 兼容协议，
@@ -140,7 +144,7 @@ python bench/verify_claims.py         # 文档数字 vs 原始数据对账
 
 | 项目 | 状态 |
 |---|---|
-| 单元/集成测试 | **245 个用例全部通过**（连跑 4 次验证无 flaky） |
+| 单元/集成测试 | **263 个用例全部通过**（连跑 4 次验证无 flaky） |
 | 覆盖率 | **86%**（唯一未覆盖模块为 `operator/handlers.py`，需真实集群） |
 | 静态检查 | ruff（含 ASYNC/SIM/B/RUF 规则集）+ mypy |
 | 清单合法性 | 生成的 K8s 清单用官方模型反序列化校验（`V1Deployment`/`V1Service`/`V1HPA` 等） |

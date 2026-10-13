@@ -10,7 +10,7 @@
 git clone https://github.com/Diya-Tian/aetherserve.git
 cd aetherserve
 make install       # 创建 .venv 并安装 [dev,operator] 依赖
-make test          # 确认基线全绿（应为 245 passed）
+make test          # 确认基线全绿（应为 263 passed）
 ```
 
 > 无需 GPU 即可开发：默认 Echo 后端是确定性假后端，跑通协议与调度链路；
