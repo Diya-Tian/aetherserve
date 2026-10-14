@@ -154,7 +154,8 @@ python bench/verify_claims.py         # 文档数字 vs 原始数据对账
 ```bash
 make test        # 全量测试
 make cov         # 覆盖率报告
-make lint        # ruff + mypy
+make lint        # ruff
+make typecheck   # mypy
 ```
 
 ---
@@ -208,17 +209,40 @@ docs/                 # 项目总体设计、架构设计、性能测试报告�
 
 ## 开发命令
 
+项目提供**两个等价入口**，按你的环境选一个：
+
 ```bash
-make install     # 安装依赖
-make dev         # 本地热重载启动网关
-make test        # 单元测试
-make lint        # ruff + mypy 静态检查
-make cov         # 覆盖率报告
-make bench       # locust 压测并生成报告
-make cluster     # 创建本地 kind 集群
-make deploy      # Helm 部署到集群
-make e2e         # kind 上的端到端集成测试
+# 方式 A：有 make 的环境（Linux / WSL / macOS / CI）
+make dev          # 本地热重载启动网关
+make test         # 全部测试（e2e 在无集群时自动跳过）
+make cov          # 覆盖率报告
+make lint         # ruff 静态检查
+make typecheck    # mypy 类型检查
+make bench        # 串行 vs 连续批处理压测
+make verify-all   # 跑完全部校验脚本
+make cluster      # 创建本地 kind 集群
+make crd          # 从代码生成并安装 CRD
+make e2e          # kind 上的端到端测试
+
+# 方式 B：跨平台（Windows PowerShell / 无 make 的环境）
+python tasks.py dev
+python tasks.py test
+python tasks.py cov
+python tasks.py lint
+python tasks.py typecheck
+python tasks.py bench
+python tasks.py verify-all
+python tasks.py cluster
+python tasks.py crd
+python tasks.py e2e
 ```
+
+> **为什么有两套**：`make` 在 Windows 上默认不可用（需要 Git Bash / MSYS2 / WSL 提供
+> `make` 与 `sh`），且虚拟环境可执行文件位置在 Unix 是 `.venv/bin/`、Windows 是
+> `.venv\Scripts\`。`tasks.py` 是零依赖的纯 Python 入口，能自动探测 venv 位置，
+> 因此在任意平台都能直接运行。两个入口驱动同一套命令，行为一致。
+>
+> 运行 `python tasks.py`（不带参数）会列出全部任务。
 
 ---
 

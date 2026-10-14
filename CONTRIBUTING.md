@@ -18,6 +18,13 @@ make test          # 确认基线全绿（应为 302 passed）
 
 ---
 
+> **命令入口说明**：下文用 `make <task>` 举例（Linux / WSL / macOS 环境）。
+> 在 **Windows PowerShell** 或无 `make` 的环境里，把 `make X` 换成 `python tasks.py X` 即可 ——
+> 两者驱动同一套命令。原因是 `make` 与 `.venv/bin/` 路径在 Windows 上不成立，
+> `tasks.py` 会自动探测 `.venv\Scripts\`。
+
+---
+
 ## 2. 分支与提交
 
 - 分支命名：`feat/短描述`、`fix/短描述`、`docs/短描述`、`perf/短描述`
